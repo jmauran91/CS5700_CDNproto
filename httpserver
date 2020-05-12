@@ -1,0 +1,43 @@
+#!/usr/bin/python3
+
+import sys
+import http.server
+import socketserver
+
+#### GLOBALS ####
+port = None
+origin = None
+
+def openSocketConnection():
+    global port, origin
+
+    server_class = http.server.HTTPServer
+    handler_class = http.server.SimpleHTTPRequestHandler
+
+    server_address = (origin, port)
+    httpd = server_class(server_address, handler_class)
+    httpd.serve_forever()
+
+def main():
+    global port, origin
+
+    expected_message = "expected ./httpserver -p <port> -o <origin>"
+
+    if not len(sys.argv) == 5:
+        raise Exception("Incorrect number of command line arguemnts, " + expected_message)
+
+    _port_tag = sys.argv[1]
+    _port = sys.argv[2]
+    _origin_tag = sys.argv[3]
+    _origin = sys.argv[4]
+
+    if (not _port_tag == "-p") or (not _origin_tag == "-o"):
+        raise Exception("Incorrect tags given, " + expected_message)
+    port = int(_port)
+    origin = _origin
+
+    openSocketConnection()
+
+if __name__ == "__main__":
+
+    main()

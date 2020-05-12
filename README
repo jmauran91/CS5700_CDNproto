@@ -1,0 +1,44 @@
+#Briefly describe the design decisions you are making in your DSN server and HTTP server.
+
+##HTTP server
+In the htpp server, we construct a simple socket connection that waits for a request
+
+##DNS server
+
+#How would you change your DNS server to dynamically return an IP, instead of a hard coded IP?
+
+
+
+#Explain how you would implement the mapping of incoming client requests to CDN
+servers, if you had several servers to pick from. Notice the CDN servers are
+geographically distributed, and so are clients. Be specific about what kind of
+measurement system you would implement, where exactly the data would be collected,
+and how you would then decide which server is the best option for a particular client.
+
+
+
+
+#Explain how you would implement caching for your HTTP server, if we were to send
+a range of requests to your HTTP server. What cache replacement strategy would you
+implement if content popularity followed a Zipfian distribution. How would your HTTP
+server respond to a request for a content that is not currently in the cache.
+
+We would use a Malpani configuration of caching, over a small-to-medium sized CDN,
+combined with consistent hashing, which would obviate the need for constant
+communication between the caches. Content popularity which follows a Zipfian
+distribution, which is to say a Power Law or "fat-tailed" distribution,
+is the norm on the internet in real life, because most of the content served on
+the internet is served by a core cluster of sites (Youtube, google, etc.).
+Thus there should be a caching system which keeps these pages maintained on its
+caches, not sites no one uses. Malpani caching works thus: the client's request
+is directed to an arbitrary cache and if the requested materials are not there,
+the cache sends a message to all the other caches by a protocol called "Multicast IP",
+which is functions similarly to Broadcasting on an ethernet, to request the page.
+If the page isn't found on any of the caches the request is directed to the home server,
+which forwards the page to an arbitrary cache and the cycle then repeats itself.
+With the Malpani caching system in place, the most popular pages would be cached.
+The main disadvantage of this method is that, on large CDNs, the messaging between
+caches bogs down the network, but combined with consistent hashing, which is a
+type of hashing that lessens the need for all caches to be updated in unison in
+order to give them all the same view of the network. With these two systems combined
+and in place, the CDN would have an effective and scalable caching system.

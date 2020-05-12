@@ -1,0 +1,167 @@
+#!/usr/bin/python3
+
+import sys
+import socket
+
+#### GLOBALS ####
+port = None
+name = None
+ip = '127.0.0.1'
+response_ttl = '300'
+response_ip = '129.10.117.187'
+
+def setupDnsSockets():
+    global port, name, ip
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) #sets up a UDP socket
+    sock.bind((ip, port))
+
+    while True:
+        request, client_addr = sock.recvfrom(512)
+        domain = processDomainName(request[12:])
+        response = constructResponse(request, domain)
+        sendDnsResponse(sock, response, client_addr)
+
+def processDomainName(request):
+    domain = ''
+    domain_bytes = b''
+    isDomainString = False
+    length = 0
+    count = 0
+
+    # Get domain from request one byte at a time stop at \x00
+    for byte in request:
+        domain_bytes += byte.to_bytes(1, byteorder='big')
+        if isDomainString:
+            domain += chr(byte)
+            count += 1
+            if count == length:
+                domain += '.'
+                isDomainString = False
+                count = 0
+        else:
+            isDomainString = True
+            length = byte
+            if length == 0:
+                domain = domain[:-1]
+                break
+
+    if not domain == 'cs5700cdn.example.com':
+        raise Exception("Sorry, this DNS server only works with IP requests for cs5700cdn.example.com")
+    
+    return domain_bytes
+
+def constructResponse(request, domain):
+    global response_ip, response_ttl
+
+    response = b''
+    header = b''
+    
+    transactionId = request[0:2]
+    header += transactionId
+    
+    flags = processFlags(request[2:4])
+    header += flags
+
+    qd_count = b'\x00\x01'
+    header += qd_count
+
+    ans_count = b'\x00\x01' #the one hardcoded IP
+    header += ans_count
+
+    ns_count = b'\x00\x00'
+    header += ns_count
+
+    sr_count = b'\x00\x00'
+    header += sr_count
+
+    response += header
+
+    body = makeBody(domain)
+    response += body
+
+    return response
+
+def makeBody(domain):
+    body = b''
+
+    #Question Section
+    body += domain
+
+    question_type = b'\x00\x01' 
+    body += question_type
+
+    question_class = b'\x00\x01'
+    body += question_class
+
+    #Response section
+    domain_loc = b'\xc0\x0c' #literally right after header
+    body += domain_loc
+
+    type_and_class = b'\x00\x01\x00\x01' #2 bytes each
+    body +=  type_and_class
+
+    ttl_bytes = int(response_ttl).to_bytes(4, byteorder='big')
+    body += ttl_bytes
+
+    ip_len = b'\x00\x04'
+    body += ip_len
+
+    for num in response_ip.split('.'):
+        ip_val = int(num).to_bytes(1, byteorder='big')
+        body += ip_val
+
+    return body
+
+def processFlags(raw_flags):
+    flags = ''
+
+    r_flag = '1' #1 for response
+    flags += r_flag
+
+    opcode = '0000' #0000 for a standard query
+    flags += opcode
+    
+    aa = '1' #authoritative hence 1
+    flags += aa
+
+    tc = '0' #not truncated hence 0
+    flags += tc 
+
+    rd = '0' #no recursion desired hence 0
+    flags += rd
+    
+    ra = '0' 
+    flags += ra
+
+    z = '000' #nothingness
+    flags += z
+
+    rcode = '0000' #response is always no error
+    flags += rcode
+
+    return int(flags, 2).to_bytes(2, byteorder='big')
+
+def sendDnsResponse(sock, response, address):
+    sock.sendto(response, address)
+
+def main():
+    global port, name
+    expected_message = "expected ./dnsserver -p <port> -n <name>"
+    if not len(sys.argv) == 5:
+        raise Exception("Incorrect number of command line arguemnts, " + expected_message)
+    _port_tag = sys.argv[1]
+    _port = sys.argv[2]
+    _name_tag = sys.argv[3]
+    _name = sys.argv[4]
+
+    if (not _port_tag == "-p") or (not _name_tag == "-n"):
+        raise Exception("Incorrect tags given, " + expected_message)
+
+    port = int(_port)
+    name = _name
+
+    setupDnsSockets()
+
+if __name__ == "__main__":
+
+    main()

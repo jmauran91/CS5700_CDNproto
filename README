@@ -1,3 +1,9 @@
+./dnsserver -p <port> -n <name>
+
+./httpserver -p <port> -o <origin>
+
+
+
 #Briefly describe the design decisions you are making in your DSN server and HTTP server.
 
 ##HTTP server
